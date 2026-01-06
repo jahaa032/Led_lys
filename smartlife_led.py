@@ -14,106 +14,98 @@ DEVICE_ID = "bf2d27231845a17a52pkuh"
 openapi = TuyaOpenAPI(API_ENDPOINT, ACCESS_ID, ACCESS_KEY)
 openapi.connect()
 
-def rainbow(speed=0.1, brightness=800, step=10):
-    """
-    Animate a rainbow cycle across your LED strip.
-    speed: delay between steps (seconds)
-    brightness: 0-1000
-    step: hue increment per iteration (smaller = smoother)
-    """
-    turn_on()
-    set_brightness(brightness)
-    print(f"Starting rainbow animation with speed {speed}s per step...")
-
-    try:
-        while True:  # infinite loop until Ctrl+C
-            for h in range(0, 360, step):
-                set_hsv(h, s=1000, v=brightness)
-                time.sleep(speed)
-    except KeyboardInterrupt:
-        print("\nRainbow animation stopped.")
-
-
 # ---------------- LED CONTROL FUNCTIONS ----------------
+
 def turn_on():
-    response = openapi.post(
+    openapi.post(
         f"/v1.0/devices/{DEVICE_ID}/commands",
         {"commands": [{"code": "switch_led", "value": True}]}
     )
-    print("Turn ON response:", response)
+    print("LED turned ON")
 
 def turn_off():
-    response = openapi.post(
+    openapi.post(
         f"/v1.0/devices/{DEVICE_ID}/commands",
         {"commands": [{"code": "switch_led", "value": False}]}
     )
-    print("Turn OFF response:", response)
+    print("LED turned OFF")
 
-def set_brightness(value):
-    """value: 10 - 1000"""
-    response = openapi.post(
+def set_brightness(value: int):
+    openapi.post(
         f"/v1.0/devices/{DEVICE_ID}/commands",
         {"commands": [{"code": "bright_value", "value": value}]}
     )
-    print(f"Set brightness to {value} response:", response)
+    print(f"Brightness set to {value}")
 
-def set_scene(scene_number):
-    """Set preset scene by number"""
-    response = openapi.post(
+def set_scene(scene: int):
+    openapi.post(
         f"/v1.0/devices/{DEVICE_ID}/commands",
-        {"commands": [{"code": "scene_num_data", "value": scene_number}]}
+        {"commands": [{"code": "scene_num_data", "value": scene}]}
     )
-    print(f"Set scene number {scene_number} response:", response)
+    print(f"Scene set to {scene}")
 
-def animate()
-    print(f"Starting animation: speed={speed}, brightness={brightness}, step={step}")
-        try:
-            while True:
-                for h in range(0,360,steps):
-                    set_hsv(h, s=1000, v=brightness)
-                    time.sleep(speed)
-        except KeyboardInterrupt
-        print("/nAnimation Stoped")
-
-def usage():
-    print("Usage: python3 smartlife_led.py <command> [args]")
-
-
-def set_hsv(h, s=1000, v=1000):
-    """
-    Set custom color using HSV
-    h: 0-359 (hue)
-    s: 0-1000 (saturation)
-    v: 0-1000 (brightness)
-    """
-    payload = { 
+def set_hsv(h: int, s: int = 1000, v: int = 1000):
+    payload = {
         "commands": [
             {"code": "work_mode", "value": "colour"},
             {"code": "colour_data", "value": f'{{"h":{h},"s":{s},"v":{v}}}'}
         ]
     }
-    response = openapi.post(
-        f"/v1.0/devices/{DEVICE_ID}/commands",
-        payload
-    )
-    print(f"Sent HSV: h={h}, s={s}, v={v}")
-    print("Response:", response)
+    openapi.post(f"/v1.0/devices/{DEVICE_ID}/commands", payload)
+    print(f"HSV set → h={h}, s={s}, v={v}")
 
+# ---------------- ANIMATIONS ----------------
 
-# ---------------- COMMAND-LINE INTERFACE ----------------
+def rainbow(speed=0.1, brightness=800, step=10):
+    turn_on()
+    set_brightness(brightness)
+    print("Starting rainbow animation (Ctrl+C to stop)")
+    try:
+        while True:
+            for h in range(0, 360, step):
+                set_hsv(h, 1000, brightness)
+                time.sleep(speed)
+    except KeyboardInterrupt:
+        print("\nRainbow stopped")
+
+def animate(speed=0.1, brightness=800, step=5):
+    turn_on()
+    set_brightness(brightness)
+    print("Starting animation (Ctrl+C to stop)")
+    try:
+        while True:
+            for h in range(0, 360, step):
+                set_hsv(h, 1000, brightness)
+                time.sleep(speed)
+    except KeyboardInterrupt:
+        print("\nAnimation stopped")
+
+# ---------------- HELP ----------------
+
+def usage():
+    print("""
+Usage: python3 smartlife_led.py <command> [args]
+
+Commands:
+  on
+  off
+  brightness <value>
+  scene <number>
+  color <hue> [s] [v]
+  rainbow [speed]
+  animate [speed] [brightness] [step]
+""")
+
+# ---------------- CLI ----------------
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python3 smartlife_led.py <command> [args]")
-        print("Commands:")
-        print("  on                  Turn LED on")
-        print("  off                 Turn LED off")
-        print("  brightness <value>  Set brightness 10-1000")
-        print("  scene <number>      Set preset scene")
-        print("  color <hue> [s] [v]  Set custom HSV color")
+        usage()
         sys.exit(1)
 
     cmd = sys.argv[1].lower()
     args = sys.argv[2:]
+
     match cmd:
         case "on":
             turn_on()
@@ -122,27 +114,28 @@ if __name__ == "__main__":
             turn_off()
 
         case "brightness":
-            if len(sys.argv) < 1:
+            if not args:
+                print("Missing brightness value")
                 sys.exit(1)
-            set_brightness(int(sys.argv[2]))
+            set_brightness(int(args[0]))
 
         case "scene":
-            if len(sys.argv) < 1:
-                print("Please provide scene number")
+            if not args:
+                print("Missing scene number")
                 sys.exit(1)
-            set_scene(int(sys.argv[2]))
+            set_scene(int(args[0]))
 
         case "color":
-            if len(sys.argv) < 1:
-                print("Please provide hue (0-359)")
+            if not args:
+                print("Missing hue")
                 sys.exit(1)
-                h = int(argv[0])
-                s = int(argv[1]) if len(sys.argv) >= 4 else 1000
-                v = int(argv[2]) if len(sys.argv) >= 5 else 1000
+            h = int(args[0])
+            s = int(args[1]) if len(args) > 1 else 1000
+            v = int(args[2]) if len(args) > 2 else 1000
             set_hsv(h, s, v)
 
         case "rainbow":
-            speed = float(sys.argv[2]) if len(sys.argv) > 2 else 0.1
+            speed = float(args[0]) if args else 0.1
             rainbow(speed)
 
         case "animate":
@@ -150,7 +143,7 @@ if __name__ == "__main__":
             brightness = int(args[1]) if len(args) > 1 else 800
             step = int(args[2]) if len(args) > 2 else 5
             animate(speed, brightness, step)
-            
+
         case _:
-            print(f"Unkown command: {cmd}")
+            print(f"Unknown command: {cmd}")
             usage()
